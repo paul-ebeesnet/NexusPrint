@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { CanvasObject, CanvasSettings, LogicType, UserProfile } from '../types';
-import { Trash2, Type, Calendar, DollarSign, User, Braces, Settings, Hash, Image as ImageIcon } from 'lucide-react';
+import { Trash2, Type, Calendar, DollarSign, User, Braces, Settings, Hash, Image as ImageIcon, AlignLeft, AlignCenter, AlignRight } from 'lucide-react';
 import { getClients } from '../services/storageService';
 
 interface SidebarProps {
@@ -270,6 +270,30 @@ const Sidebar: React.FC<SidebarProps> = ({
                             <option value="Inter">Inter</option>
                         </select>
                         </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-medium text-gray-500 mb-1">Alignment</label>
+                      <div className="flex rounded-md shadow-sm">
+                        <button
+                          onClick={() => handlePropChange('align', 'left')}
+                          className={`relative inline-flex items-center px-3 py-2 rounded-l-md border text-sm font-medium focus:z-10 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 flex-1 justify-center ${selectedObject.align === 'left' || !selectedObject.align ? 'bg-indigo-50 text-indigo-600 border-indigo-200 z-10' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'}`}
+                        >
+                          <AlignLeft size={16} />
+                        </button>
+                        <button
+                          onClick={() => handlePropChange('align', 'center')}
+                          className={`relative inline-flex items-center px-3 py-2 -ml-px border text-sm font-medium focus:z-10 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 flex-1 justify-center ${selectedObject.align === 'center' ? 'bg-indigo-50 text-indigo-600 border-indigo-200 z-10' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'}`}
+                        >
+                          <AlignCenter size={16} />
+                        </button>
+                        <button
+                          onClick={() => handlePropChange('align', 'right')}
+                          className={`relative inline-flex items-center px-3 py-2 -ml-px rounded-r-md border text-sm font-medium focus:z-10 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 flex-1 justify-center ${selectedObject.align === 'right' ? 'bg-indigo-50 text-indigo-600 border-indigo-200 z-10' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'}`}
+                        >
+                          <AlignRight size={16} />
+                        </button>
+                      </div>
                     </div>
                  </>
              )}

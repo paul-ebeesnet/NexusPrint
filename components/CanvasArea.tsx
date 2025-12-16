@@ -163,6 +163,7 @@ const CanvasArea: React.FC<CanvasAreaProps> = ({
                 fontSize={obj.fontSize}
                 fontFamily={obj.fontFamily}
                 width={obj.width}
+                align={obj.align || 'left'}
                 // Konva specific props for interactivity
                 draggable
                 onClick={() => onSelect(obj.id)}

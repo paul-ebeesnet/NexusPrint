@@ -280,7 +280,10 @@ const Navbar = ({ user, onLogout }: { user: UserProfile, onLogout: () => void })
 };
 
 // Editor Page
-const EditorPage = ({ id, user, fileInputRef }: { id: string, user: UserProfile, fileInputRef: React.RefObject<HTMLInputElement> }) => {
+const EditorPage = ({ id: rawId, user, fileInputRef }: { id: string, user: UserProfile, fileInputRef: React.RefObject<HTMLInputElement> }) => {
+  // Sanitize ID because hash routing might include query params in the ID (e.g. "123?action=print")
+  const id = rawId.split('?')[0];
+
   const [, setLocation] = useLocation();
   const [settings, setSettings] = useState<CanvasSettings>({
     width: Math.round(210 * MM_TO_PX),
