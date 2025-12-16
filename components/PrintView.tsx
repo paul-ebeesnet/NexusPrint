@@ -22,6 +22,7 @@ const PrintView: React.FC<PrintViewProps> = ({ objects, settings }) => {
           width: `${settings.width}px`,
           height: `${settings.height}px`,
           overflow: 'hidden', 
+          backgroundColor: 'white'
         }}
       >
         {sortedObjects.map((obj) => {
@@ -36,6 +37,7 @@ const PrintView: React.FC<PrintViewProps> = ({ objects, settings }) => {
                         top: `${obj.y}px`,
                         width: `${obj.width}px`,
                         height: `${obj.height}px`,
+                        zIndex: 1
                     }}
                     alt=""
                   />
@@ -56,6 +58,9 @@ const PrintView: React.FC<PrintViewProps> = ({ objects, settings }) => {
                 lineHeight: 1.2,
                 whiteSpace: 'pre-wrap', // Preserve formatting
                 wordBreak: 'break-word',
+                zIndex: 10,
+                color: '#000000', // Ensure text is black
+                pointerEvents: 'none' // Text shouldn't block clicks in preview
                 }}
             >
                 {obj.text}

@@ -30,7 +30,6 @@ const PrintModal: React.FC<PrintModalProps> = ({ isOpen, onClose, objects, setti
     }, [isOpen, initialTab]);
 
     // Extract variables whenever objects change (structural change only)
-    // We use a JSON string of keys to avoid unnecessary re-runs if other props change
     const variableKeysHash = JSON.stringify(objects.map(o => o.variableKey).filter(k => k));
     
     useEffect(() => {
@@ -44,7 +43,6 @@ const PrintModal: React.FC<PrintModalProps> = ({ isOpen, onClose, objects, setti
         
         setVariables(uniqueVars);
         
-        // Ensure we have value entries for all variables
         setValues(prev => {
             const next = { ...prev };
             let hasChange = false;
@@ -54,11 +52,16 @@ const PrintModal: React.FC<PrintModalProps> = ({ isOpen, onClose, objects, setti
                     hasChange = true;
                 }
             });
-            // Note: We don't force push to parent here to avoid circular render loops.
-            // App.tsx handles missing keys gracefully (defaults to rawValue).
             return hasChange ? next : prev;
         });
     }, [isOpen, variableKeysHash]);
+
+    // Sync values to parent on open to ensure preview matches inputs (even if empty)
+    useEffect(() => {
+        if (isOpen) {
+             onValuesChange(values);
+        }
+    }, [isOpen, values]); // Note: keeping values in dependency to sync continuously
 
     // Load History whenever opened or templateId changes
     useEffect(() => {
@@ -70,12 +73,11 @@ const PrintModal: React.FC<PrintModalProps> = ({ isOpen, onClose, objects, setti
     const handleChange = (key: string, val: string) => {
         const newValues = { ...values, [key]: val };
         setValues(newValues);
-        onValuesChange(newValues);
+        // onValuesChange(newValues); // Handled by useEffect now
     };
 
     const handleHistoryClick = (record: PrintRecord) => {
         setValues(record.data);
-        onValuesChange(record.data);
         setActiveTab('form');
     };
 
@@ -99,11 +101,12 @@ const PrintModal: React.FC<PrintModalProps> = ({ isOpen, onClose, objects, setti
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60 no-print backdrop-blur-sm">
-            <div className="bg-white rounded-xl shadow-2xl w-full max-w-6xl h-[700px] flex overflow-hidden">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60 no-print backdrop-blur-sm p-4">
+            {/* Fixed height issue: use h-full max-h-[90vh] instead of h-[700px] */}
+            <div className="bg-white rounded-xl shadow-2xl w-[95vw] max-w-6xl h-full max-h-[90vh] flex overflow-hidden flex-col md:flex-row">
                 
                 {/* Left Sidebar: Tabs & Inputs (35%) */}
-                <div className="w-[35%] bg-gray-50 border-r border-gray-200 flex flex-col min-w-[320px]">
+                <div className="md:w-[35%] w-full bg-gray-50 border-r border-gray-200 flex flex-col md:min-w-[320px]">
                     <div className="flex border-b border-gray-200">
                         <button 
                             onClick={() => setActiveTab('form')}
@@ -176,8 +179,8 @@ const PrintModal: React.FC<PrintModalProps> = ({ isOpen, onClose, objects, setti
                 </div>
 
                 {/* Right Content: Preview (65%) */}
-                <div className="flex-1 flex flex-col bg-gray-100">
-                    <div className="px-6 py-4 bg-white border-b border-gray-200 flex justify-between items-center shadow-sm z-10">
+                <div className="flex-1 flex flex-col bg-gray-100 min-h-0">
+                    <div className="px-6 py-4 bg-white border-b border-gray-200 flex justify-between items-center shadow-sm z-10 shrink-0">
                         <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
                             <Eye className="text-indigo-600" size={20} />
                             Live Preview
@@ -195,13 +198,14 @@ const PrintModal: React.FC<PrintModalProps> = ({ isOpen, onClose, objects, setti
                                 height: settings.height,
                                 transform: `scale(${previewScale})`,
                                 transformOrigin: 'center center',
+                                flexShrink: 0 // Prevent shrinking
                             }}
                         >
                             <PrintView objects={objects} settings={settings} />
                         </div>
                     </div>
 
-                    <div className="p-4 border-t border-gray-200 bg-white flex justify-end gap-3 z-10">
+                    <div className="p-4 border-t border-gray-200 bg-white flex justify-end gap-3 z-10 shrink-0">
                         <button 
                             onClick={onClose}
                             className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
