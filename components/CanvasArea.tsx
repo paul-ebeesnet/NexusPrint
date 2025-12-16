@@ -116,8 +116,11 @@ const CanvasArea: React.FC<CanvasAreaProps> = ({
             trRef.current.keepRatio(false); // Allow distort/stretch for images
             trRef.current.enabledAnchors(['top-left', 'top-center', 'top-right', 'middle-right', 'middle-left', 'bottom-left', 'bottom-center', 'bottom-right']);
         } else {
-            trRef.current.keepRatio(true); // Keep ratio for text (scales font size)
-            trRef.current.enabledAnchors(['top-left', 'top-right', 'bottom-left', 'bottom-right']);
+            // Text Optimization:
+            // Side anchors (middle-left/right) will change WIDTH (reflow).
+            // Corner anchors will change FONT SIZE (scale).
+            trRef.current.keepRatio(false); 
+            trRef.current.enabledAnchors(['top-left', 'top-right', 'bottom-left', 'bottom-right', 'middle-left', 'middle-right']);
         }
 
         trRef.current.getLayer()?.batchDraw();
@@ -234,19 +237,33 @@ const CanvasArea: React.FC<CanvasAreaProps> = ({
                 onTransformEnd={(e) => {
                     const node = e.target;
                     const scaleX = node.scaleX();
+                    const scaleY = node.scaleY();
                     
-                    // reset scale to 1 and adjust font size or width instead
+                    // Reset node scales immediately
                     node.scaleX(1);
                     node.scaleY(1);
 
-                    onChangeObject({
-                    ...obj,
-                    x: node.x(),
-                    y: node.y(),
-                    width: Math.max(5, node.width() * scaleX),
-                    // For text, adjust font size
-                    fontSize: (obj.fontSize || 16) * scaleX
-                    });
+                    const anchor = trRef.current?.getActiveAnchor();
+                    
+                    // If side anchor (middle-left/right), only change width (Text Reflow)
+                    if (anchor === 'middle-left' || anchor === 'middle-right') {
+                         onChangeObject({
+                             ...obj,
+                             x: node.x(),
+                             y: node.y(),
+                             width: Math.max(5, node.width() * scaleX)
+                         });
+                    } else {
+                         // Corner anchor: Scale Font Size + Width
+                         const scale = Math.max(scaleX, scaleY);
+                         onChangeObject({
+                             ...obj,
+                             x: node.x(),
+                             y: node.y(),
+                             width: node.width() * scale,
+                             fontSize: (obj.fontSize || 16) * scale
+                         });
+                    }
                 }}
                 />
             );

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Route, Switch, useLocation } from 'wouter';
-import { Printer, MousePointer2, Type, Save, ArrowLeft, LogOut, Calendar, DollarSign, Coins, Hash, Image as ImageIcon, Undo, Redo } from 'lucide-react';
+import { Printer, MousePointer2, Type, Save, ArrowLeft, LogOut, Calendar, DollarSign, Coins, Hash, Image as ImageIcon, Undo, Redo, Loader2, Globe, Lock } from 'lucide-react';
 import CanvasArea from './components/CanvasArea';
 import Sidebar from './components/Sidebar';
 import PrintView from './components/PrintView';
@@ -308,6 +308,7 @@ const EditorPage = ({ id: rawId, user, fileInputRef }: { id: string, user: UserP
   const [zoom, setZoom] = useState(1);
   const [templateName, setTemplateName] = useState('Untitled');
   const [isPublic, setIsPublic] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   
   // History State for Undo/Redo
   const [history, setHistory] = useState<CanvasObject[][]>([]);
@@ -561,22 +562,32 @@ const EditorPage = ({ id: rawId, user, fileInputRef }: { id: string, user: UserP
   };
 
   const handleSave = async () => {
-    if (!user) return;
-    const template: Template = {
-      id: id === 'new' ? generateId() : id,
-      user_id: user.id,
-      name: templateName,
-      objects,
-      settings,
-      is_public: isPublic,
-      updatedAt: new Date().toISOString()
-    };
+    if (!user || isSaving) return;
     
-    const newId = await saveTemplate(template, user);
-    if (id === 'new') {
-        setLocation(`/editor/${newId}`);
-    } else {
-        alert('Saved successfully!');
+    setIsSaving(true);
+    try {
+        const template: Template = {
+          id: id === 'new' ? generateId() : id,
+          user_id: user.id,
+          name: templateName,
+          objects,
+          settings,
+          is_public: isPublic,
+          updatedAt: new Date().toISOString()
+        };
+        
+        const newId = await saveTemplate(template, user);
+        
+        if (id === 'new') {
+            setLocation(`/editor/${newId}`);
+        } else {
+            alert('Saved successfully!');
+        }
+    } catch (e) {
+        console.error("Save failed", e);
+        alert("Failed to save template. Please check your connection.");
+    } finally {
+        setIsSaving(false);
     }
   };
 
@@ -598,6 +609,16 @@ const EditorPage = ({ id: rawId, user, fileInputRef }: { id: string, user: UserP
                 className="font-bold text-gray-900 border-none focus:ring-0 p-0 text-lg"
             />
           </div>
+          
+          <button 
+            onClick={() => setIsPublic(!isPublic)}
+            className={`flex items-center gap-1.5 px-2 py-1 rounded text-xs font-medium transition-colors ${isPublic ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+            title={isPublic ? "Public: Visible in Gallery" : "Private: Only visible to you"}
+          >
+            {isPublic ? <Globe size={14} /> : <Lock size={14} />}
+            {isPublic ? 'Public' : 'Private'}
+          </button>
+
           <div className="h-6 w-px bg-gray-300 mx-2"></div>
           <div className="flex bg-gray-100 rounded-lg p-1">
              <button onClick={() => setZoom(z => Math.max(0.2, z - 0.1))} className="px-2 text-sm font-medium hover:bg-white rounded">-</button>
@@ -660,10 +681,11 @@ const EditorPage = ({ id: rawId, user, fileInputRef }: { id: string, user: UserP
            </button>
            <button 
              onClick={handleSave} 
-             className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white hover:bg-indigo-700 rounded-lg text-sm font-medium shadow-sm"
+             disabled={isSaving}
+             className={`flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium shadow-sm transition-all ${isSaving ? 'opacity-75 cursor-not-allowed' : 'hover:bg-indigo-700'}`}
            >
-             <Save size={18} />
-             Save
+             {isSaving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+             {isSaving ? 'Saving...' : 'Save'}
            </button>
         </div>
       </div>

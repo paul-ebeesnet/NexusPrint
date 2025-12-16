@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { CanvasObject, CanvasSettings, LogicType, UserProfile } from '../types';
 import { Trash2, Type, Calendar, DollarSign, User, Braces, Settings, Hash, Image as ImageIcon, AlignLeft, AlignCenter, AlignRight } from 'lucide-react';
 import { getClients } from '../services/storageService';
+import { formatDate } from '../services/utils';
 
 interface SidebarProps {
   selectedObject: CanvasObject | null;
@@ -45,6 +46,19 @@ const Sidebar: React.FC<SidebarProps> = ({
     }
   };
 
+  const handleDateFormatChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+      const newFormat = e.target.value;
+      if (selectedObject) {
+          // Immediately update text to reflect new format
+          const newText = formatDate(new Date(), newFormat);
+          onUpdateObject({ 
+              ...selectedObject, 
+              dateFormat: newFormat,
+              text: newText 
+          });
+      }
+  };
+
   const handleDimensionChange = (e: React.ChangeEvent<HTMLInputElement>, dim: 'width' | 'height') => {
     const val = parseFloat(e.target.value);
     if (!isNaN(val)) {
@@ -55,7 +69,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   const showVariableKeyInput = selectedObject && selectedObject.type === 'text' && (
       selectedObject.logicType === LogicType.VARIABLE || 
       selectedObject.logicType === LogicType.CURRENCY_ENG || 
-      selectedObject.logicType === LogicType.CURRENCY_CHI ||
+      selectedObject.logicType === LogicType.CURRENCY_CHI || 
       selectedObject.logicType === LogicType.CURRENCY_NUM
   );
 
@@ -234,7 +248,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                     {selectedObject.logicType === LogicType.DATE ? (
                         <select
                         value={selectedObject.dateFormat || 'YYYY-MM-DD'}
-                        onChange={(e) => handlePropChange('dateFormat', e.target.value)}
+                        onChange={handleDateFormatChange}
                         className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border p-2"
                         >
                         <option value="YYYY-MM-DD">YYYY-MM-DD</option>
