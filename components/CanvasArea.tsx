@@ -8,14 +8,14 @@ interface CanvasAreaProps {
   objects: CanvasObject[];
   selectedId: string | null;
   onSelect: (id: string | null) => void;
-  onChangeObject: (obj: CanvasObject) => void;
+  onChangeObject: (obj: CanvasObject, recordHistory?: boolean) => void;
   scale: number;
 }
 
 interface CanvasImageObjectProps {
     obj: CanvasObject;
     onSelect: () => void;
-    onChangeObject: (o: CanvasObject) => void;
+    onChangeObject: (o: CanvasObject, recordHistory?: boolean) => void;
 }
 
 // Subcomponent to handle loading standard image objects for Konva
@@ -55,7 +55,7 @@ const CanvasImageObject: React.FC<CanvasImageObjectProps> = ({ obj, onSelect, on
                     ...obj,
                     x: e.target.x(),
                     y: e.target.y(),
-                });
+                }, true);
             }}
             onTransformEnd={(e) => {
                 const node = e.target;
@@ -71,7 +71,7 @@ const CanvasImageObject: React.FC<CanvasImageObjectProps> = ({ obj, onSelect, on
                     y: node.y(),
                     width: Math.max(5, node.width() * scaleX),
                     height: Math.max(5, node.height() * scaleY)
-                });
+                }, true);
             }}
         />
     );
@@ -154,10 +154,15 @@ const CanvasArea: React.FC<CanvasAreaProps> = ({
           ...obj,
           text: e.target.value,
           rawValue: e.target.value // Update raw value for static text syncing
-      });
+      }, false); // Don't save history on keystroke
   };
 
   const handleTextBlur = () => {
+      // Save history on blur
+      const editingObject = objects.find(o => o.id === editingId);
+      if (editingObject) {
+         onChangeObject(editingObject, true);
+      }
       setEditingId(null);
   };
 
@@ -232,7 +237,7 @@ const CanvasArea: React.FC<CanvasAreaProps> = ({
                     ...obj,
                     x: e.target.x(),
                     y: e.target.y(),
-                    });
+                    }, true);
                 }}
                 onTransformEnd={(e) => {
                     const node = e.target;
@@ -252,7 +257,7 @@ const CanvasArea: React.FC<CanvasAreaProps> = ({
                              x: node.x(),
                              y: node.y(),
                              width: Math.max(5, node.width() * scaleX)
-                         });
+                         }, true);
                     } else {
                          // Corner anchor: Scale Font Size + Width
                          const scale = Math.max(scaleX, scaleY);
@@ -262,7 +267,7 @@ const CanvasArea: React.FC<CanvasAreaProps> = ({
                              y: node.y(),
                              width: node.width() * scale,
                              fontSize: (obj.fontSize || 16) * scale
-                         });
+                         }, true);
                     }
                 }}
                 />

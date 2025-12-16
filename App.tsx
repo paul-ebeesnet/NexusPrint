@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Route, Switch, useLocation } from 'wouter';
-import { Printer, MousePointer2, Type, Save, ArrowLeft, LogOut, Calendar, DollarSign, Coins, Hash, Image as ImageIcon, Undo, Redo, Loader2, Globe, Lock, History } from 'lucide-react';
+import { Printer, MousePointer2, Type, Save, ArrowLeft, LogOut, Calendar, DollarSign, Coins, Hash, Image as ImageIcon, Undo, Redo, Loader2, Globe, Lock, History, FileDown } from 'lucide-react';
 import CanvasArea from './components/CanvasArea';
 import Sidebar from './components/Sidebar';
 import PrintView from './components/PrintView';
@@ -458,21 +458,45 @@ const EditorPage = ({ id: rawId, user, fileInputRef }: { id: string, user: UserP
       }
   };
 
-  const handleUndo = () => {
+  const handleUndo = useCallback(() => {
       if (historyIndex > 0) {
           const newIndex = historyIndex - 1;
           setHistoryIndex(newIndex);
           setObjects(history[newIndex]);
       }
-  };
+  }, [historyIndex, history]);
 
-  const handleRedo = () => {
+  const handleRedo = useCallback(() => {
       if (historyIndex < history.length - 1) {
           const newIndex = historyIndex + 1;
           setHistoryIndex(newIndex);
           setObjects(history[newIndex]);
       }
-  };
+  }, [historyIndex, history]);
+
+  // Keyboard Shortcuts for Undo/Redo
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Check if input/textarea is focused to avoid conflict (though undo usually wanted there too, browser handles text undo)
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return;
+
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+        e.preventDefault();
+        if (e.shiftKey) {
+          handleRedo();
+        } else {
+          handleUndo();
+        }
+      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
+          e.preventDefault();
+          handleRedo();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleUndo, handleRedo]);
 
   const handleAddText = () => {
     const newObj: CanvasObject = {
@@ -667,7 +691,7 @@ const EditorPage = ({ id: rawId, user, fileInputRef }: { id: string, user: UserP
                 onClick={handleUndo} 
                 disabled={historyIndex <= 0}
                 className={`p-2 rounded-lg flex items-center justify-center transition-colors ${historyIndex <= 0 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-600 hover:bg-gray-100'}`}
-                title="Undo"
+                title="Undo (Ctrl+Z)"
               >
                   <Undo size={18} />
               </button>
@@ -675,7 +699,7 @@ const EditorPage = ({ id: rawId, user, fileInputRef }: { id: string, user: UserP
                 onClick={handleRedo}
                 disabled={historyIndex >= history.length - 1}
                 className={`p-2 rounded-lg flex items-center justify-center transition-colors ${historyIndex >= history.length - 1 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-600 hover:bg-gray-100'}`}
-                title="Redo"
+                title="Redo (Ctrl+Y or Ctrl+Shift+Z)"
               >
                   <Redo size={18} />
               </button>
@@ -707,6 +731,14 @@ const EditorPage = ({ id: rawId, user, fileInputRef }: { id: string, user: UserP
            </button>
 
            <div className="h-6 w-px bg-gray-300 mx-2"></div>
+           
+           <button 
+             onClick={() => setShowPrintModal(true)} 
+             className="flex items-center gap-2 px-4 py-2 text-indigo-700 bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 rounded-lg text-sm font-medium"
+           >
+             <FileDown size={18} />
+             Export PDF
+           </button>
 
            <button 
              onClick={() => setShowPrintModal(true)} 
@@ -731,10 +763,10 @@ const EditorPage = ({ id: rawId, user, fileInputRef }: { id: string, user: UserP
          <Sidebar 
             selectedObject={selectedObject}
             settings={settings}
-            onUpdateObject={(updated) => {
+            onUpdateObject={(updated, recordHistory) => {
                 // Determine if this update should record history
                 // Continuous text input might span too many history entries, but keeping it simple for now
-                updateObjects(objects.map(o => o.id === updated.id ? updated : o));
+                updateObjects(objects.map(o => o.id === updated.id ? updated : o), recordHistory);
             }}
             onUpdateSettings={setSettings}
             onDeleteObject={handleDeleteObject}
@@ -747,9 +779,9 @@ const EditorPage = ({ id: rawId, user, fileInputRef }: { id: string, user: UserP
               objects={objects}
               selectedId={selectedId}
               onSelect={setSelectedId}
-              onChangeObject={(updated) => {
+              onChangeObject={(updated, recordHistory) => {
                   // This is called onDragEnd / TransformEnd, which are distinct history events
-                  updateObjects(objects.map(o => o.id === updated.id ? updated : o));
+                  updateObjects(objects.map(o => o.id === updated.id ? updated : o), recordHistory);
               }}
               scale={zoom}
             />

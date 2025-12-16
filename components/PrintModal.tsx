@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { X, Printer, History, RotateCcw, Eye } from 'lucide-react';
+import { X, Printer, History, RotateCcw, Eye, FileDown, Loader2 } from 'lucide-react';
 import { CanvasObject, PrintRecord, UserProfile, CanvasSettings, LogicType } from '../types';
 import { getPrintHistory, savePrintRecord, getClients } from '../services/storageService';
 import PrintView from './PrintView';
+import { jsPDF } from 'jspdf';
+import html2canvas from 'html2canvas';
 
 interface PrintModalProps {
     isOpen: boolean;
@@ -22,6 +24,7 @@ const PrintModal: React.FC<PrintModalProps> = ({ isOpen, onClose, objects, setti
     const [history, setHistory] = useState<PrintRecord[]>([]);
     const [activeTab, setActiveTab] = useState<'form' | 'history'>('form');
     const [clients, setClients] = useState<string[]>([]);
+    const [isPdfLoading, setIsPdfLoading] = useState(false);
 
     // Initialize tab on open
     useEffect(() => {
@@ -84,11 +87,64 @@ const PrintModal: React.FC<PrintModalProps> = ({ isOpen, onClose, objects, setti
         setActiveTab('form');
     };
 
-    const handleSubmit = async () => {
+    const recordAction = async () => {
         await savePrintRecord(templateId, values, user);
-        onPrint(values);
         // Refresh history
         getPrintHistory(templateId).then(setHistory);
+    };
+
+    const handleSubmit = async () => {
+        await recordAction();
+        onPrint(values);
+    };
+
+    const handleDownloadPDF = async () => {
+        if (isPdfLoading) return;
+        setIsPdfLoading(true);
+
+        try {
+            // Target the hidden container that has the full-scale PrintView
+            const input = document.getElementById('pdf-generation-container');
+            if (!input) throw new Error("Preview element not found");
+
+            // Capture the element as an image
+            const canvas = await html2canvas(input, {
+                scale: 2, // 2x scale for better resolution
+                useCORS: true, // Handle cross-origin images
+                logging: false,
+                backgroundColor: '#ffffff'
+            });
+
+            const imgData = canvas.toDataURL('image/png');
+
+            // Initialize jsPDF
+            // Determine orientation based on dimensions
+            const orientation = settings.widthUnit > settings.heightUnit ? 'l' : 'p';
+            const unit = settings.unit || 'mm';
+            
+            const pdf = new jsPDF({
+                orientation,
+                unit,
+                format: [settings.widthUnit, settings.heightUnit]
+            });
+
+            // Add the captured image to the PDF
+            // (imgData, format, x, y, width, height)
+            pdf.addImage(imgData, 'PNG', 0, 0, settings.widthUnit, settings.heightUnit);
+
+            // Save
+            const filename = `NexusPrint_${templateId}_${Date.now()}.pdf`;
+            pdf.save(filename);
+
+            // Also record this as a "print" action in history
+            await recordAction();
+
+        } catch (error) {
+            console.error("PDF Generation failed:", error);
+            alert("Failed to generate PDF. Please try again.");
+        } finally {
+            setIsPdfLoading(false);
+        }
     };
     
     // Helper to check if a variable key corresponds to a CUSTOMER_NAME logic type
@@ -195,7 +251,7 @@ const PrintModal: React.FC<PrintModalProps> = ({ isOpen, onClose, objects, setti
                 </div>
 
                 {/* Right Content: Preview (65%) */}
-                <div className="flex-1 flex flex-col bg-gray-100 min-h-0">
+                <div className="flex-1 flex flex-col bg-gray-100 min-h-0 relative">
                     <div className="px-6 py-4 bg-white border-b border-gray-200 flex justify-between items-center shadow-sm z-10 shrink-0">
                         <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
                             <Eye className="text-indigo-600" size={20} />
@@ -207,6 +263,7 @@ const PrintModal: React.FC<PrintModalProps> = ({ isOpen, onClose, objects, setti
                     </div>
 
                     <div className="flex-1 overflow-auto p-8 flex items-center justify-center bg-gray-200/50">
+                        {/* Visual Preview (Scaled) */}
                         <div 
                             className="bg-white shadow-2xl transition-all duration-300 ease-in-out"
                             style={{
@@ -219,6 +276,13 @@ const PrintModal: React.FC<PrintModalProps> = ({ isOpen, onClose, objects, setti
                         >
                             <PrintView objects={objects} settings={settings} />
                         </div>
+
+                        {/* Hidden Off-Screen Container for PDF Generation (Full Scale) */}
+                        <div style={{ position: 'absolute', top: '-10000px', left: '-10000px', visibility: 'visible', overflow: 'hidden' }}>
+                             <div id="pdf-generation-container" style={{ width: settings.width, height: settings.height, background: 'white' }}>
+                                 <PrintView objects={objects} settings={settings} />
+                             </div>
+                        </div>
                     </div>
 
                     <div className="p-4 border-t border-gray-200 bg-white flex justify-end gap-3 z-10 shrink-0">
@@ -228,6 +292,16 @@ const PrintModal: React.FC<PrintModalProps> = ({ isOpen, onClose, objects, setti
                         >
                             Close
                         </button>
+                        
+                        <button 
+                            onClick={handleDownloadPDF}
+                            disabled={isPdfLoading}
+                            className="px-4 py-2 border border-indigo-200 rounded-md shadow-sm text-sm font-medium text-indigo-700 bg-indigo-50 hover:bg-indigo-100 flex items-center gap-2 disabled:opacity-50"
+                        >
+                            {isPdfLoading ? <Loader2 size={16} className="animate-spin" /> : <FileDown size={16} />}
+                            {isPdfLoading ? 'Generating...' : 'Export PDF'}
+                        </button>
+
                         <button 
                             onClick={handleSubmit}
                             className="px-6 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 flex items-center gap-2"

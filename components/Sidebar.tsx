@@ -7,7 +7,7 @@ import { formatDate } from '../services/utils';
 interface SidebarProps {
   selectedObject: CanvasObject | null;
   settings: CanvasSettings;
-  onUpdateObject: (obj: CanvasObject) => void;
+  onUpdateObject: (obj: CanvasObject, recordHistory?: boolean) => void;
   onUpdateSettings: (s: CanvasSettings) => void;
   onDeleteObject: (id: string) => void;
   user: UserProfile | null;
@@ -36,13 +36,20 @@ const Sidebar: React.FC<SidebarProps> = ({
             ...selectedObject,
             rawValue: e.target.value,
             text: selectedObject.logicType === LogicType.STATIC ? e.target.value : (selectedObject.text || '')
-        });
+        }, false); // Don't record history on every keystroke
     }
   };
 
-  const handlePropChange = (key: keyof CanvasObject, value: any) => {
+  const handleTextBlur = () => {
+      // Record history on blur
+      if (selectedObject) {
+          onUpdateObject(selectedObject, true);
+      }
+  };
+
+  const handlePropChange = (key: keyof CanvasObject, value: any, recordHistory = true) => {
     if (selectedObject) {
-      onUpdateObject({ ...selectedObject, [key]: value });
+      onUpdateObject({ ...selectedObject, [key]: value }, recordHistory);
     }
   };
 
@@ -194,7 +201,8 @@ const Sidebar: React.FC<SidebarProps> = ({
                             min="0"
                             max="100"
                             value={Math.round((selectedObject.opacity ?? 1) * 100)}
-                            onChange={(e) => handlePropChange('opacity', parseInt(e.target.value) / 100)}
+                            onChange={(e) => handlePropChange('opacity', parseInt(e.target.value) / 100, false)}
+                            onMouseUp={(e) => handlePropChange('opacity', parseInt(e.currentTarget.value) / 100, true)}
                             className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
                         />
                      </div>
@@ -230,7 +238,8 @@ const Sidebar: React.FC<SidebarProps> = ({
                             <input
                                 type="text"
                                 value={selectedObject.variableKey || ''}
-                                onChange={(e) => handlePropChange('variableKey', e.target.value)}
+                                onChange={(e) => handlePropChange('variableKey', e.target.value, false)}
+                                onBlur={() => onUpdateObject(selectedObject, true)}
                                 placeholder="e.g. amount"
                                 className="block w-full rounded-md border-indigo-300 ring-1 ring-indigo-100 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border p-2 bg-indigo-50/50"
                             />
@@ -267,6 +276,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                             list={selectedObject.logicType === LogicType.CUSTOMER_NAME ? "client-names" : undefined}
                             value={selectedObject.rawValue || ''}
                             onChange={handleTextChange}
+                            onBlur={handleTextBlur}
                             placeholder={selectedObject.logicType === LogicType.STATIC ? "Enter text..." : "Enter value..."}
                             className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border p-2"
                         />
