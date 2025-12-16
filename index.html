@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Print Anything - SaaS Platform</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+      
+      body {
+        font-family: 'Inter', sans-serif;
+        background-color: #f3f4f6; /* gray-100 */
+        overflow: hidden; /* App handles scroll */
+      }
+
+      /* Print Styles */
+      @media print {
+        @page {
+          margin: 0;
+        }
+        body {
+          background-color: white;
+          overflow: visible;
+        }
+        .no-print {
+          display: none !important;
+        }
+        .print-only {
+          display: block !important;
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          z-index: 9999;
+        }
+      }
+
+      @media screen {
+        .print-only {
+          display: none;
+        }
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react-konva": "https://esm.sh/react-konva@^19.2.1",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "konva": "https://esm.sh/konva@^10.0.12",
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "react": "https://esm.sh/react@^19.2.3",
+    "lucide-react": "https://esm.sh/lucide-react@^0.560.0",
+    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2.45.4",
+    "wouter": "https://esm.sh/wouter@^3.3.5"
+  }
+}
+</script>
+</head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>
