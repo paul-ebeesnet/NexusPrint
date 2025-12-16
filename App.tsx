@@ -399,7 +399,7 @@ const EditorPage = ({ id: rawId, user, fileInputRef }: { id: string, user: UserP
       const hasChanges = JSON.stringify(updated) !== JSON.stringify(currentObjs);
       return hasChanges ? updated : currentObjs;
     });
-  }, [objects.length, JSON.stringify(printValues), JSON.stringify(objects.map(o => o.rawValue + o.variableKey + o.logicType))]); 
+  }, [objects.length, JSON.stringify(printValues), JSON.stringify(objects.map(o => o.rawValue + o.variableKey + o.logicType + o.dateFormat))]); 
 
   // --- Undo / Redo Logic ---
   

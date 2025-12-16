@@ -268,6 +268,15 @@ const Sidebar: React.FC<SidebarProps> = ({
 
                     <div className="grid grid-cols-2 gap-4">
                         <div>
+                        <label className="block text-xs font-medium text-gray-500 mb-1">Width (px)</label>
+                        <input
+                            type="number"
+                            value={Math.round(selectedObject.width)}
+                            onChange={(e) => handlePropChange('width', parseInt(e.target.value))}
+                            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border p-2"
+                        />
+                        </div>
+                        <div>
                         <label className="block text-xs font-medium text-gray-500 mb-1">Font Size</label>
                         <input
                             type="number"
@@ -276,7 +285,9 @@ const Sidebar: React.FC<SidebarProps> = ({
                             className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border p-2"
                         />
                         </div>
-                        <div>
+                    </div>
+
+                    <div>
                         <label className="block text-xs font-medium text-gray-500 mb-1">Font Family</label>
                         <select
                             value={selectedObject.fontFamily}
@@ -288,7 +299,6 @@ const Sidebar: React.FC<SidebarProps> = ({
                             <option value="Courier New">Courier New</option>
                             <option value="Inter">Inter</option>
                         </select>
-                        </div>
                     </div>
 
                     <div>
