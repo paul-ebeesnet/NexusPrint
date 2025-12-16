@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { X, Printer, History, RotateCcw, Eye } from 'lucide-react';
-import { CanvasObject, PrintRecord, UserProfile, CanvasSettings } from '../types';
-import { getPrintHistory, savePrintRecord } from '../services/storageService';
+import { CanvasObject, PrintRecord, UserProfile, CanvasSettings, LogicType } from '../types';
+import { getPrintHistory, savePrintRecord, getClients } from '../services/storageService';
 import PrintView from './PrintView';
 
 interface PrintModalProps {
@@ -21,11 +21,14 @@ const PrintModal: React.FC<PrintModalProps> = ({ isOpen, onClose, objects, setti
     const [values, setValues] = useState<Record<string, string>>({});
     const [history, setHistory] = useState<PrintRecord[]>([]);
     const [activeTab, setActiveTab] = useState<'form' | 'history'>('form');
+    const [clients, setClients] = useState<string[]>([]);
 
     // Initialize tab on open
     useEffect(() => {
         if (isOpen) {
             setActiveTab(initialTab);
+            // Fetch clients for autocomplete
+            getClients().then(c => setClients(c.map(x => x.name)));
         }
     }, [isOpen, initialTab]);
 
@@ -87,6 +90,11 @@ const PrintModal: React.FC<PrintModalProps> = ({ isOpen, onClose, objects, setti
         // Refresh history
         getPrintHistory(templateId).then(setHistory);
     };
+    
+    // Helper to check if a variable key corresponds to a CUSTOMER_NAME logic type
+    const isClientField = (key: string) => {
+        return objects.some(o => o.variableKey === key && o.logicType === LogicType.CUSTOMER_NAME);
+    };
 
     // Calculate preview scale to fit in the right column
     const previewScale = useMemo(() => {
@@ -139,9 +147,17 @@ const PrintModal: React.FC<PrintModalProps> = ({ isOpen, onClose, objects, setti
                                                     type="text"
                                                     value={values[key] || ''}
                                                     onChange={(e) => handleChange(key, e.target.value)}
+                                                    list={isClientField(key) ? `print-client-list-${key}` : undefined}
                                                     className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border p-2.5"
                                                     placeholder={`Enter ${key}...`}
                                                 />
+                                                {isClientField(key) && (
+                                                    <datalist id={`print-client-list-${key}`}>
+                                                        {clients.map((name, i) => (
+                                                            <option key={i} value={name} />
+                                                        ))}
+                                                    </datalist>
+                                                )}
                                             </div>
                                         ))}
                                     </form>

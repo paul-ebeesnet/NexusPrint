@@ -1,17 +1,18 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Route, Switch, useLocation } from 'wouter';
-import { Printer, MousePointer2, Type, Save, ArrowLeft, LogOut, Calendar, DollarSign, Coins, Hash, Image as ImageIcon, Undo, Redo, Loader2, Globe, Lock } from 'lucide-react';
+import { Printer, MousePointer2, Type, Save, ArrowLeft, LogOut, Calendar, DollarSign, Coins, Hash, Image as ImageIcon, Undo, Redo, Loader2, Globe, Lock, History } from 'lucide-react';
 import CanvasArea from './components/CanvasArea';
 import Sidebar from './components/Sidebar';
 import PrintView from './components/PrintView';
 import AuthModal from './components/AuthModal';
 import PrintModal from './components/PrintModal';
 import Dashboard from './components/Dashboard';
+import HistoryPage from './components/HistoryPage';
 import AdminPanel from './components/AdminPanel';
 import Footer from './components/Footer';
 import { CanvasObject, CanvasSettings, LogicType, Template, UserProfile } from './types';
 import { generateId, numberToEnglish, numberToChinese, formatCurrency, formatDate, convertToPx, MM_TO_PX } from './services/utils';
-import { saveTemplate, getTemplateById, getProfile, logout, addRecentName, GUEST_USER_ID } from './services/storageService';
+import { saveTemplate, getTemplateById, getProfile, logout, addRecentName, GUEST_USER_ID, getHistoryRecordById } from './services/storageService';
 import { supabase } from './services/supabase';
 
 function App() {
@@ -168,7 +169,7 @@ function App() {
                         <div className="mx-auto h-12 w-12 bg-indigo-600 rounded-xl flex items-center justify-center text-white">
                             <Printer size={28} />
                         </div>
-                        <h2 className="mt-6 text-3xl font-extrabold text-gray-900">Print-Anything SaaS</h2>
+                        <h2 className="mt-6 text-3xl font-extrabold text-gray-900">Nexus Print 智匯打印</h2>
                         <p className="mt-2 text-sm text-gray-600">
                             Professional Canvas Editor & Template Management
                         </p>
@@ -201,6 +202,21 @@ function App() {
                     <Navbar user={user} onLogout={handleLogout} />
                     <div className="flex-1">
                         <Dashboard user={user} />
+                    </div>
+                    <Footer />
+                </div>
+            ) : (
+                <RedirectToHome />
+            )}
+        </Route>
+
+        {/* History */}
+        <Route path="/history">
+            {user ? (
+                <div className="min-h-screen bg-gray-100 flex flex-col">
+                    <Navbar user={user} onLogout={handleLogout} />
+                    <div className="flex-1">
+                        <HistoryPage />
                     </div>
                     <Footer />
                 </div>
@@ -263,7 +279,7 @@ const Navbar = ({ user, onLogout }: { user: UserProfile, onLogout: () => void })
                             <div className="bg-indigo-600 p-1.5 rounded text-white">
                                 <Printer size={18} />
                             </div>
-                            <span className="font-bold text-gray-900">Print-Anything</span>
+                            <span className="font-bold text-gray-900">Nexus Print</span>
                         </div>
                         {user.role === 'admin' && (
                             <button onClick={() => setLocation('/admin')} className={`text-sm font-medium ${location === '/admin' ? 'text-indigo-600' : 'text-gray-500 hover:text-gray-900'}`}>
@@ -272,6 +288,9 @@ const Navbar = ({ user, onLogout }: { user: UserProfile, onLogout: () => void })
                         )}
                         <button onClick={() => setLocation('/dashboard')} className={`text-sm font-medium ${location === '/dashboard' ? 'text-indigo-600' : 'text-gray-500 hover:text-gray-900'}`}>
                             Dashboard
+                        </button>
+                        <button onClick={() => setLocation('/history')} className={`text-sm font-medium ${location === '/history' ? 'text-indigo-600' : 'text-gray-500 hover:text-gray-900'}`}>
+                            History
                         </button>
                     </div>
                     <div className="flex items-center gap-4">
@@ -328,6 +347,19 @@ const EditorPage = ({ id: rawId, user, fileInputRef }: { id: string, user: UserP
     } else if (hash.includes('action=history')) {
         setShowPrintModal(true);
         setPrintModalTab('history');
+    } else if (hash.includes('action=reprint')) {
+        // Handle Reprint Action from History Page
+        const urlParams = new URLSearchParams(hash.split('?')[1]);
+        const histId = urlParams.get('history_id');
+        if (histId) {
+            getHistoryRecordById(histId).then(record => {
+                 if (record) {
+                     setPrintValues(record.data);
+                     setShowPrintModal(true);
+                     setPrintModalTab('form');
+                 }
+            });
+        }
     }
   }, []);
 
@@ -389,7 +421,11 @@ const EditorPage = ({ id: rawId, user, fileInputRef }: { id: string, user: UserP
             if (obj.variableKey && printValues[obj.variableKey] !== undefined) newText = effectiveValue;
             break;
           case LogicType.CUSTOMER_NAME:
-            newText = effectiveValue; break;
+            // Behaves like variable with autocomplete support
+            newText = obj.variableKey && printValues[obj.variableKey] ? effectiveValue : `{{${obj.variableKey || 'client'}}}`;
+             // If in print mode but no value, show placeholder, otherwise show value
+            if (obj.variableKey && printValues[obj.variableKey] !== undefined) newText = effectiveValue;
+            break;
           default:
             newText = effectiveValue;
         }

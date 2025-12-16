@@ -400,6 +400,90 @@ export const deleteClient = async (id: string) => {
 
 // --- Print History ---
 
+export interface HistoryItem extends PrintRecord {
+    template_name?: string;
+}
+
+export const getAllPrintHistory = async (): Promise<HistoryItem[]> => {
+    const session = await getSessionSafe();
+    let history: HistoryItem[] = [];
+
+    // Cloud Fetch
+    if (session) {
+        try {
+            const { data } = await supabase
+                .from('print_history')
+                .select('*, templates(name)')
+                .order('created_at', { ascending: false })
+                .limit(50);
+            
+            if (data) {
+                history = data.map((item: any) => ({
+                    ...item,
+                    template_name: item.templates?.name || 'Unknown Template'
+                }));
+            }
+        } catch (e) {
+            console.warn("Failed to fetch cloud history", e);
+        }
+    }
+
+    // Local Storage
+    try {
+        const stored = localStorage.getItem(LS_HISTORY_KEY);
+        if (stored) {
+            const storedTemplates = localStorage.getItem(LS_TEMPLATES_KEY);
+            const templates: Template[] = storedTemplates ? JSON.parse(storedTemplates) : [];
+            const templateMap = new Map(templates.map(t => [t.id, t.name]));
+
+            const localHistory: PrintRecord[] = JSON.parse(stored);
+            
+            const enhancedLocalHistory: HistoryItem[] = localHistory.map(rec => ({
+                ...rec,
+                template_name: templateMap.get(rec.template_id) || 'Unknown Template'
+            }));
+
+            // Merge: If we have cloud data, we prefer it, but if cloud is empty/failed or we are guest, use local
+            // For now, simple strategy: if logged in, cloud + local (deduped by ID), if guest, just local
+            
+            const seenIds = new Set(history.map(h => h.id));
+            enhancedLocalHistory.forEach(h => {
+                if (!seenIds.has(h.id)) {
+                    history.push(h);
+                }
+            });
+        }
+    } catch(e) {}
+
+    return history.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+};
+
+export const getHistoryRecordById = async (id: string): Promise<PrintRecord | null> => {
+    // 1. Try Local
+    try {
+        const stored = localStorage.getItem(LS_HISTORY_KEY);
+        if (stored) {
+            const localHistory: PrintRecord[] = JSON.parse(stored);
+            const found = localHistory.find(h => h.id === id);
+            if (found) return found;
+        }
+    } catch(e) {}
+
+    // 2. Try Cloud
+    const session = await getSessionSafe();
+    if (session) {
+        try {
+            const { data } = await supabase
+                .from('print_history')
+                .select('*')
+                .eq('id', id)
+                .single();
+            if (data) return data;
+        } catch(e) {}
+    }
+    return null;
+}
+
 export const getPrintHistory = async (templateId: string): Promise<PrintRecord[]> => {
     const session = await getSessionSafe();
     let history: PrintRecord[] = [];
@@ -429,13 +513,16 @@ export const getPrintHistory = async (templateId: string): Promise<PrintRecord[]
                 .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
             
             // Deduplicate if cloud works but basic fallback
-            if (history.length === 0) {
-                history = templateHistory;
-            }
+            // Simple check: if cloud returned 0, use local. If cloud has data, it's likely more authoritative/synced.
+            // But we might have offline edits.
+            const seenIds = new Set(history.map(h => h.id));
+            templateHistory.forEach(h => {
+                if (!seenIds.has(h.id)) history.push(h);
+            });
         }
     } catch(e) {}
 
-    return history;
+    return history.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 };
 
 export const savePrintRecord = async (templateId: string, data: Record<string, string>, user?: UserProfile) => {

@@ -70,7 +70,8 @@ const Sidebar: React.FC<SidebarProps> = ({
       selectedObject.logicType === LogicType.VARIABLE || 
       selectedObject.logicType === LogicType.CURRENCY_ENG || 
       selectedObject.logicType === LogicType.CURRENCY_CHI || 
-      selectedObject.logicType === LogicType.CURRENCY_NUM
+      selectedObject.logicType === LogicType.CURRENCY_NUM ||
+      selectedObject.logicType === LogicType.CUSTOMER_NAME
   );
 
   return (

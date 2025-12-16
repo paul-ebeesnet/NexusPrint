@@ -1,5 +1,5 @@
 {
-  "name": "print-anything",
-  "description": "A professional web-based canvas editor for designing and printing cheques, receipts, and forms with dynamic variable support and template management.",
+  "name": "nexus-print",
+  "description": "Nexus Print 智匯打印 - A professional web-based canvas editor for designing and printing cheques, receipts, and forms with dynamic variable support and template management.",
   "requestFramePermissions": []
 }
