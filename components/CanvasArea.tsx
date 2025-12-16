@@ -41,6 +41,14 @@ const CanvasImageObject: React.FC<CanvasImageObjectProps> = ({ obj, onSelect, on
             draggable
             onClick={onSelect}
             onTap={onSelect}
+            onMouseEnter={(e) => {
+                const stage = e.target.getStage();
+                if (stage) stage.container().style.cursor = 'move';
+            }}
+            onMouseLeave={(e) => {
+                const stage = e.target.getStage();
+                if (stage) stage.container().style.cursor = 'default';
+            }}
             onDragEnd={(e) => {
                 onChangeObject({
                     ...obj,
@@ -78,6 +86,10 @@ const CanvasArea: React.FC<CanvasAreaProps> = ({
 }) => {
   const stageRef = useRef<Konva.Stage>(null);
   const trRef = useRef<Konva.Transformer>(null);
+  
+  // State for Inline Text Editing
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const textAreaRef = useRef<HTMLTextAreaElement>(null);
 
   // Sort objects so images are always rendered first (at the bottom)
   // Logic: Images = -1 (first/bottom), Text = 1 (last/top)
@@ -103,7 +115,7 @@ const CanvasArea: React.FC<CanvasAreaProps> = ({
             trRef.current.keepRatio(false); // Allow distort/stretch for images
             trRef.current.enabledAnchors(['top-left', 'top-center', 'top-right', 'middle-right', 'middle-left', 'bottom-left', 'bottom-center', 'bottom-right']);
         } else {
-            trRef.current.keepRatio(true); // Keep ratio for text
+            trRef.current.keepRatio(true); // Keep ratio for text (scales font size)
             trRef.current.enabledAnchors(['top-left', 'top-right', 'bottom-left', 'bottom-right']);
         }
 
@@ -115,13 +127,37 @@ const CanvasArea: React.FC<CanvasAreaProps> = ({
     }
   }, [selectedId, objects]);
 
+  // Handle outside click to deselect or finish editing
   const checkDeselect = (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
-    // deselect when clicked on empty area
     const clickedOnEmpty = e.target === e.target.getStage();
     if (clickedOnEmpty) {
       onSelect(null);
+      setEditingId(null); // Close text editor if open
     }
   };
+
+  // Setup Text Area for Inline Editing when editingId is set
+  useEffect(() => {
+      if (editingId && textAreaRef.current) {
+          textAreaRef.current.focus();
+          // Move cursor to end
+          textAreaRef.current.setSelectionRange(textAreaRef.current.value.length, textAreaRef.current.value.length);
+      }
+  }, [editingId]);
+
+  const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>, obj: CanvasObject) => {
+      onChangeObject({
+          ...obj,
+          text: e.target.value,
+          rawValue: e.target.value // Update raw value for static text syncing
+      });
+  };
+
+  const handleTextBlur = () => {
+      setEditingId(null);
+  };
+
+  const editingObject = objects.find(o => o.id === editingId);
 
   return (
     <div className="relative shadow-2xl overflow-hidden bg-white mx-auto" style={{ 
@@ -129,6 +165,7 @@ const CanvasArea: React.FC<CanvasAreaProps> = ({
         height: settings.height * scale,
         transformOrigin: 'top left'
       }}>
+      
       <Stage
         width={settings.width * scale}
         height={settings.height * scale}
@@ -153,6 +190,9 @@ const CanvasArea: React.FC<CanvasAreaProps> = ({
                  return <CanvasImageObject key={obj.id} obj={obj} onSelect={() => onSelect(obj.id)} onChangeObject={onChangeObject} />
              }
 
+             // Hide the Konva Text object if it's currently being edited (to show textarea instead)
+             const isEditing = editingId === obj.id;
+
              return (
                 <Text
                 key={obj.id}
@@ -164,10 +204,25 @@ const CanvasArea: React.FC<CanvasAreaProps> = ({
                 fontFamily={obj.fontFamily}
                 width={obj.width}
                 align={obj.align || 'left'}
-                // Konva specific props for interactivity
-                draggable
+                visible={!isEditing} // Hide when editing
+                // Performance optimization
+                perfectDrawEnabled={false}
+                // Interactivity
+                draggable={!isEditing}
                 onClick={() => onSelect(obj.id)}
                 onTap={() => onSelect(obj.id)}
+                onDblClick={() => {
+                    onSelect(obj.id);
+                    setEditingId(obj.id);
+                }}
+                onMouseEnter={(e) => {
+                    const stage = e.target.getStage();
+                    if (stage) stage.container().style.cursor = 'text';
+                }}
+                onMouseLeave={(e) => {
+                    const stage = e.target.getStage();
+                    if (stage) stage.container().style.cursor = 'default';
+                }}
                 onDragEnd={(e) => {
                     onChangeObject({
                     ...obj,
@@ -208,6 +263,37 @@ const CanvasArea: React.FC<CanvasAreaProps> = ({
           />
         </Layer>
       </Stage>
+
+      {/* HTML Overlay for Text Editing */}
+      {editingObject && editingId && (
+          <textarea
+            ref={textAreaRef}
+            value={editingObject.text}
+            onChange={(e) => handleTextChange(e, editingObject)}
+            onBlur={handleTextBlur}
+            style={{
+                position: 'absolute',
+                top: editingObject.y * scale,
+                left: editingObject.x * scale,
+                width: editingObject.width * scale,
+                height: (editingObject.fontSize || 16) * scale * 1.5 * (editingObject.text?.split('\n').length || 1) + 20, // Approximate height
+                fontSize: `${(editingObject.fontSize || 16) * scale}px`,
+                fontFamily: editingObject.fontFamily,
+                textAlign: editingObject.align || 'left',
+                lineHeight: 1.2,
+                color: 'black',
+                background: 'transparent', // Transparent background to look like canvas
+                border: '1px dashed #6366f1', // Dashed border to indicate editing
+                padding: '0px',
+                margin: '0px',
+                overflow: 'hidden',
+                resize: 'none',
+                outline: 'none',
+                zIndex: 100, // Above canvas
+                minHeight: '40px'
+            }}
+          />
+      )}
     </div>
   );
 };
