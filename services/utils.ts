@@ -165,6 +165,9 @@ export const formatDate = (date: Date, formatStr: string): string => {
     case 'DD/MM/YYYY': return `${dd}/${mm}/${yyyy}`;
     case 'MM/DD/YYYY': return `${mm}/${dd}/${yyyy}`;
     case 'DD Month YYYY': return date.toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' });
+    case 'YYYY': return String(yyyy);
+    case 'MM': return mm;
+    case 'DD': return dd;
     default: return `${yyyy}-${mm}-${dd}`;
   }
 };

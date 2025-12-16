@@ -1,4 +1,3 @@
-
 import { Template, UserProfile, Client, PrintRecord } from '../types';
 import { supabase } from './supabase';
 import { User as SupabaseUser } from '@supabase/supabase-js';
@@ -156,6 +155,7 @@ export const getTemplates = async (): Promise<Template[]> => {
             const { data, error } = await supabase
                 .from('templates')
                 .select('*')
+                .eq('user_id', session.user.id) // Only fetch user's templates
                 .order('updated_at', { ascending: false });
 
             if (!error && data) {
@@ -186,6 +186,50 @@ export const getTemplates = async (): Promise<Template[]> => {
         const dateB = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
         return dateB - dateA;
     });
+};
+
+export const getPublicTemplates = async (): Promise<Template[]> => {
+    const session = await getSessionSafe();
+    
+    // Guest users currently only see local data, so no public gallery unless we open up RLS.
+    // Assuming backend RLS allows anon read on is_public=true
+    
+    try {
+        const { data, error } = await supabase
+            .from('templates')
+            .select('*')
+            .eq('is_public', true)
+            .order('updated_at', { ascending: false });
+
+        if (!error && data) {
+            return data.map((row: any) => ({
+                id: row.id,
+                user_id: row.user_id,
+                name: row.name,
+                objects: row.content?.objects || [],
+                settings: row.content?.settings || { width: 0, height: 0, unit: 'mm', widthUnit: 0, heightUnit: 0, dpi: 96 },
+                is_public: true,
+                updatedAt: row.updated_at
+            }));
+        }
+    } catch (e) {
+        console.warn("Fetch public templates failed:", e);
+    }
+    return [];
+};
+
+export const copyTemplateToLibrary = async (template: Template, user: UserProfile): Promise<string> => {
+     // Create a copy
+     const newTemplate: Template = {
+         ...template,
+         id: Math.random().toString(36).substr(2, 9),
+         user_id: user.id,
+         name: `${template.name} (Copy)`,
+         is_public: false, // Default to private
+         updatedAt: new Date().toISOString()
+     };
+     
+     return await saveTemplate(newTemplate, user);
 };
 
 export const getTemplateById = async (id: string, user?: UserProfile): Promise<Template | null> => {

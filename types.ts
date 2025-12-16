@@ -50,6 +50,7 @@ export interface CanvasObject {
   align?: 'left' | 'center' | 'right'; // Only for text
   logicType?: LogicType; // Only for text
   dateFormat?: string;
+  opacity?: number; // 0 to 1
 }
 
 export interface CanvasSettings {

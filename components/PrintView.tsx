@@ -37,7 +37,8 @@ const PrintView: React.FC<PrintViewProps> = ({ objects, settings }) => {
                         top: `${obj.y}px`,
                         width: `${obj.width}px`,
                         height: `${obj.height}px`,
-                        zIndex: 1
+                        zIndex: 1,
+                        opacity: obj.opacity ?? 1
                     }}
                     alt=""
                   />

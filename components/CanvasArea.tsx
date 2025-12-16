@@ -38,6 +38,7 @@ const CanvasImageObject: React.FC<CanvasImageObjectProps> = ({ obj, onSelect, on
             width={obj.width}
             height={obj.height}
             image={image || undefined}
+            opacity={obj.opacity ?? 1}
             draggable
             onClick={onSelect}
             onTap={onSelect}

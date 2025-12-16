@@ -167,6 +167,22 @@ const Sidebar: React.FC<SidebarProps> = ({
                             />
                         </div>
                      </div>
+                     
+                     {/* Opacity Control */}
+                     <div>
+                        <div className="flex justify-between mb-1">
+                            <label className="block text-xs font-medium text-gray-500">Opacity</label>
+                            <span className="text-xs text-gray-700">{Math.round((selectedObject.opacity ?? 1) * 100)}%</span>
+                        </div>
+                        <input
+                            type="range"
+                            min="0"
+                            max="100"
+                            value={Math.round((selectedObject.opacity ?? 1) * 100)}
+                            onChange={(e) => handlePropChange('opacity', parseInt(e.target.value) / 100)}
+                            className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                        />
+                     </div>
                  </div>
              )}
 
@@ -225,6 +241,9 @@ const Sidebar: React.FC<SidebarProps> = ({
                         <option value="DD/MM/YYYY">DD/MM/YYYY</option>
                         <option value="MM/DD/YYYY">MM/DD/YYYY</option>
                         <option value="DD Month YYYY">DD Month YYYY</option>
+                        <option value="YYYY">YYYY (Year)</option>
+                        <option value="MM">MM (Month)</option>
+                        <option value="DD">DD (Day)</option>
                         </select>
                     ) : (
                         <>

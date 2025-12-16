@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Route, Switch, useLocation } from 'wouter';
-import { Printer, MousePointer2, Type, Save, ArrowLeft, LogOut, Calendar, DollarSign, Coins, Hash, Image as ImageIcon } from 'lucide-react';
+import { Printer, MousePointer2, Type, Save, ArrowLeft, LogOut, Calendar, DollarSign, Coins, Hash, Image as ImageIcon, Undo, Redo } from 'lucide-react';
 import CanvasArea from './components/CanvasArea';
 import Sidebar from './components/Sidebar';
 import PrintView from './components/PrintView';
@@ -8,6 +8,7 @@ import AuthModal from './components/AuthModal';
 import PrintModal from './components/PrintModal';
 import Dashboard from './components/Dashboard';
 import AdminPanel from './components/AdminPanel';
+import Footer from './components/Footer';
 import { CanvasObject, CanvasSettings, LogicType, Template, UserProfile } from './types';
 import { generateId, numberToEnglish, numberToChinese, formatCurrency, formatDate, convertToPx, MM_TO_PX } from './services/utils';
 import { saveTemplate, getTemplateById, getProfile, logout, addRecentName, GUEST_USER_ID } from './services/storageService';
@@ -96,7 +97,7 @@ function App() {
         console.error("Login Error:", e);
         // Enhanced error handling for common network/environment issues
         if (e.message?.includes('fetch') || e.message?.includes('Network') || e.message?.includes('Load failed') || e.name === 'TypeError') {
-            throw new Error("Connection Error: Unable to reach the server. Please try again or use 'Continue as Guest' if the problem persists.");
+            throw new Error("Connection Error: Unable to reach the server. Please use 'Continue as Guest' if the problem persists.");
         }
         throw e;
     }
@@ -161,41 +162,47 @@ function App() {
       <Switch>
         {/* Landing / Login */}
         <Route path="/">
-            <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-                <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
-                    <div className="mx-auto h-12 w-12 bg-indigo-600 rounded-xl flex items-center justify-center text-white">
-                        <Printer size={28} />
+            <div className="min-h-screen bg-gray-50 flex flex-col">
+                <div className="flex-1 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+                    <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
+                        <div className="mx-auto h-12 w-12 bg-indigo-600 rounded-xl flex items-center justify-center text-white">
+                            <Printer size={28} />
+                        </div>
+                        <h2 className="mt-6 text-3xl font-extrabold text-gray-900">Print-Anything SaaS</h2>
+                        <p className="mt-2 text-sm text-gray-600">
+                            Professional Canvas Editor & Template Management
+                        </p>
                     </div>
-                    <h2 className="mt-6 text-3xl font-extrabold text-gray-900">Print-Anything SaaS</h2>
-                    <p className="mt-2 text-sm text-gray-600">
-                        Professional Canvas Editor & Template Management
-                    </p>
-                </div>
-                <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-                    <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
-                        <button 
-                            onClick={() => setShowAuthModal(true)}
-                            className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                        >
-                            Log In / Sign Up
-                        </button>
-                        <button 
-                            onClick={handleGuestLogin}
-                            className="mt-4 w-full flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
-                        >
-                            Continue as Guest
-                        </button>
+                    <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
+                        <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
+                            <button 
+                                onClick={() => setShowAuthModal(true)}
+                                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                            >
+                                Log In / Sign Up
+                            </button>
+                            <button 
+                                onClick={handleGuestLogin}
+                                className="mt-4 w-full flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+                            >
+                                Continue as Guest
+                            </button>
+                        </div>
                     </div>
                 </div>
+                <Footer />
             </div>
         </Route>
 
         {/* Dashboard */}
         <Route path="/dashboard">
             {user ? (
-                <div className="min-h-screen bg-gray-100">
+                <div className="min-h-screen bg-gray-100 flex flex-col">
                     <Navbar user={user} onLogout={handleLogout} />
-                    <Dashboard user={user} />
+                    <div className="flex-1">
+                        <Dashboard user={user} />
+                    </div>
+                    <Footer />
                 </div>
             ) : (
                 <RedirectToHome />
@@ -205,9 +212,12 @@ function App() {
         {/* Admin Panel */}
         <Route path="/admin">
             {user && user.role === 'admin' ? (
-                <div className="min-h-screen bg-gray-100">
+                <div className="min-h-screen bg-gray-100 flex flex-col">
                     <Navbar user={user} onLogout={handleLogout} />
-                    <AdminPanel />
+                    <div className="flex-1">
+                        <AdminPanel />
+                    </div>
+                    <Footer />
                 </div>
             ) : (
                 <RedirectToHome />
@@ -299,6 +309,10 @@ const EditorPage = ({ id: rawId, user, fileInputRef }: { id: string, user: UserP
   const [templateName, setTemplateName] = useState('Untitled');
   const [isPublic, setIsPublic] = useState(false);
   
+  // History State for Undo/Redo
+  const [history, setHistory] = useState<CanvasObject[][]>([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
+
   // Print Mode State
   const [showPrintModal, setShowPrintModal] = useState(false);
   const [printValues, setPrintValues] = useState<Record<string, string>>({});
@@ -324,8 +338,15 @@ const EditorPage = ({ id: rawId, user, fileInputRef }: { id: string, user: UserP
                 setObjects(t.objects);
                 setTemplateName(t.name);
                 setIsPublic(t.is_public);
+                // Initialize history
+                setHistory([t.objects]);
+                setHistoryIndex(0);
             }
         });
+    } else if (id === 'new') {
+        // Initialize empty history
+        setHistory([[]]);
+        setHistoryIndex(0);
     }
   }, [id, user]);
 
@@ -338,9 +359,10 @@ const EditorPage = ({ id: rawId, user, fileInputRef }: { id: string, user: UserP
   }, [settings.widthUnit, settings.heightUnit, settings.unit]);
 
   // Recalculate object text whenever objects change OR print values change
+  // Note: We do NOT want this to trigger history save, as it's an auto-update.
   useEffect(() => {
-    setObjects(currentObjs => 
-      currentObjs.map(obj => {
+    setObjects(currentObjs => {
+      const updated = currentObjs.map(obj => {
         if (obj.type === 'image') return obj;
 
         // Determine the source value: 
@@ -371,9 +393,49 @@ const EditorPage = ({ id: rawId, user, fileInputRef }: { id: string, user: UserP
             newText = effectiveValue;
         }
         return newText !== obj.text ? { ...obj, text: newText } : obj;
-      })
-    );
+      });
+      
+      // Only update if something changed to avoid cycles
+      const hasChanges = JSON.stringify(updated) !== JSON.stringify(currentObjs);
+      return hasChanges ? updated : currentObjs;
+    });
   }, [objects.length, JSON.stringify(printValues), JSON.stringify(objects.map(o => o.rawValue + o.variableKey + o.logicType))]); 
+
+  // --- Undo / Redo Logic ---
+  
+  const saveToHistory = useCallback((newObjects: CanvasObject[]) => {
+      setHistory(prev => {
+          const newHistory = prev.slice(0, historyIndex + 1);
+          newHistory.push(newObjects);
+          // Limit history size to 50
+          if (newHistory.length > 50) newHistory.shift();
+          return newHistory;
+      });
+      setHistoryIndex(prev => Math.min(prev + 1, 49));
+  }, [historyIndex]);
+
+  const updateObjects = (newObjs: CanvasObject[], recordHistory: boolean = true) => {
+      setObjects(newObjs);
+      if (recordHistory) {
+          saveToHistory(newObjs);
+      }
+  };
+
+  const handleUndo = () => {
+      if (historyIndex > 0) {
+          const newIndex = historyIndex - 1;
+          setHistoryIndex(newIndex);
+          setObjects(history[newIndex]);
+      }
+  };
+
+  const handleRedo = () => {
+      if (historyIndex < history.length - 1) {
+          const newIndex = historyIndex + 1;
+          setHistoryIndex(newIndex);
+          setObjects(history[newIndex]);
+      }
+  };
 
   const handleAddText = () => {
     const newObj: CanvasObject = {
@@ -384,7 +446,8 @@ const EditorPage = ({ id: rawId, user, fileInputRef }: { id: string, user: UserP
       fontSize: 16, fontFamily: 'Arial', align: 'left',
       logicType: LogicType.STATIC
     };
-    setObjects(prev => [...prev, newObj]);
+    const newList = [...objects, newObj];
+    updateObjects(newList);
     setSelectedId(newObj.id);
   };
 
@@ -399,7 +462,8 @@ const EditorPage = ({ id: rawId, user, fileInputRef }: { id: string, user: UserP
       logicType: LogicType.DATE,
       dateFormat: 'YYYY-MM-DD'
     };
-    setObjects(prev => [...prev, newObj]);
+    const newList = [...objects, newObj];
+    updateObjects(newList);
     setSelectedId(newObj.id);
   };
 
@@ -413,7 +477,8 @@ const EditorPage = ({ id: rawId, user, fileInputRef }: { id: string, user: UserP
       fontSize: 16, fontFamily: 'Arial', align: 'left',
       logicType: LogicType.CURRENCY_ENG
     };
-    setObjects(prev => [...prev, newObj]);
+    const newList = [...objects, newObj];
+    updateObjects(newList);
     setSelectedId(newObj.id);
   };
 
@@ -427,7 +492,8 @@ const EditorPage = ({ id: rawId, user, fileInputRef }: { id: string, user: UserP
       fontSize: 16, fontFamily: 'Arial', align: 'left',
       logicType: LogicType.CURRENCY_CHI
     };
-    setObjects(prev => [...prev, newObj]);
+    const newList = [...objects, newObj];
+    updateObjects(newList);
     setSelectedId(newObj.id);
   };
 
@@ -441,7 +507,8 @@ const EditorPage = ({ id: rawId, user, fileInputRef }: { id: string, user: UserP
       fontSize: 16, fontFamily: 'Arial', align: 'left',
       logicType: LogicType.CURRENCY_NUM
     };
-    setObjects(prev => [...prev, newObj]);
+    const newList = [...objects, newObj];
+    updateObjects(newList);
     setSelectedId(newObj.id);
   };
 
@@ -475,9 +542,11 @@ const EditorPage = ({ id: rawId, user, fileInputRef }: { id: string, user: UserP
                   x: 50, y: 50,
                   width, height,
                   src,
-                  text: '', rawValue: ''
+                  text: '', rawValue: '',
+                  opacity: 0.5 // Default opacity 50%
               };
-              setObjects(prev => [...prev, newObj]);
+              const newList = [...objects, newObj];
+              updateObjects(newList);
               setSelectedId(newObj.id);
           };
       };
@@ -486,7 +555,8 @@ const EditorPage = ({ id: rawId, user, fileInputRef }: { id: string, user: UserP
   };
 
   const handleDeleteObject = (objId: string) => {
-      setObjects(prev => prev.filter(o => o.id !== objId));
+      const newList = objects.filter(o => o.id !== objId);
+      updateObjects(newList);
       if (selectedId === objId) setSelectedId(null);
   };
 
@@ -533,6 +603,25 @@ const EditorPage = ({ id: rawId, user, fileInputRef }: { id: string, user: UserP
              <button onClick={() => setZoom(z => Math.max(0.2, z - 0.1))} className="px-2 text-sm font-medium hover:bg-white rounded">-</button>
              <span className="px-2 text-xs flex items-center">{Math.round(zoom * 100)}%</span>
              <button onClick={() => setZoom(z => Math.min(2, z + 0.1))} className="px-2 text-sm font-medium hover:bg-white rounded">+</button>
+          </div>
+          <div className="h-6 w-px bg-gray-300 mx-2"></div>
+          <div className="flex gap-1">
+              <button 
+                onClick={handleUndo} 
+                disabled={historyIndex <= 0}
+                className={`p-2 rounded-lg flex items-center justify-center transition-colors ${historyIndex <= 0 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-600 hover:bg-gray-100'}`}
+                title="Undo"
+              >
+                  <Undo size={18} />
+              </button>
+              <button 
+                onClick={handleRedo}
+                disabled={historyIndex >= history.length - 1}
+                className={`p-2 rounded-lg flex items-center justify-center transition-colors ${historyIndex >= history.length - 1 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-600 hover:bg-gray-100'}`}
+                title="Redo"
+              >
+                  <Redo size={18} />
+              </button>
           </div>
         </div>
 
@@ -584,7 +673,11 @@ const EditorPage = ({ id: rawId, user, fileInputRef }: { id: string, user: UserP
          <Sidebar 
             selectedObject={selectedObject}
             settings={settings}
-            onUpdateObject={(updated) => setObjects(objects.map(o => o.id === updated.id ? updated : o))}
+            onUpdateObject={(updated) => {
+                // Determine if this update should record history
+                // Continuous text input might span too many history entries, but keeping it simple for now
+                updateObjects(objects.map(o => o.id === updated.id ? updated : o));
+            }}
             onUpdateSettings={setSettings}
             onDeleteObject={handleDeleteObject}
             user={user}
@@ -596,7 +689,10 @@ const EditorPage = ({ id: rawId, user, fileInputRef }: { id: string, user: UserP
               objects={objects}
               selectedId={selectedId}
               onSelect={setSelectedId}
-              onChangeObject={(updated) => setObjects(objects.map(o => o.id === updated.id ? updated : o))}
+              onChangeObject={(updated) => {
+                  // This is called onDragEnd / TransformEnd, which are distinct history events
+                  updateObjects(objects.map(o => o.id === updated.id ? updated : o));
+              }}
               scale={zoom}
             />
          </div>
