@@ -1,3 +1,4 @@
+
 import { Template, UserProfile, Client, PrintRecord } from '../types';
 import { supabase } from './supabase';
 import { User as SupabaseUser } from '@supabase/supabase-js';
@@ -75,6 +76,101 @@ export const getAllUsers = async (): Promise<UserProfile[]> => {
     } catch (e) {
         console.warn("getAllUsers failed:", e);
         return [];
+    }
+};
+
+// --- System Settings & Invitation Codes ---
+
+export const getSystemSettings = async (): Promise<Record<string, string>> => {
+    try {
+        const { data } = await supabase.from('app_settings').select('*');
+        const settings: Record<string, string> = {};
+        data?.forEach((row: any) => {
+            settings[row.key] = row.value;
+        });
+        return settings;
+    } catch (e) {
+        console.warn("Fetch settings failed", e);
+        return {};
+    }
+};
+
+export const toggleSystemSetting = async (key: string, value: string) => {
+    try {
+        await supabase.from('app_settings').upsert({ key, value });
+    } catch (e) {
+        console.error("Update setting failed", e);
+        throw e;
+    }
+};
+
+export interface InvitationCode {
+    id: string;
+    code: string;
+    is_used: boolean;
+    used_by?: string;
+    created_at: string;
+    used_at?: string;
+}
+
+export const generateInviteCode = async (user_id: string): Promise<InvitationCode | null> => {
+    // Simple 6-char random code
+    const code = Math.random().toString(36).substring(2, 8).toUpperCase();
+    try {
+        const { data, error } = await supabase
+            .from('invitation_codes')
+            .insert({
+                code,
+                created_by: user_id
+            })
+            .select()
+            .single();
+        if (error) throw error;
+        return data;
+    } catch (e) {
+        console.error("Generate code failed", e);
+        return null;
+    }
+};
+
+export const getInviteCodes = async (): Promise<InvitationCode[]> => {
+    try {
+        const { data } = await supabase
+            .from('invitation_codes')
+            .select('*')
+            .order('created_at', { ascending: false });
+        return data || [];
+    } catch (e) {
+        return [];
+    }
+};
+
+export const validateInviteCode = async (code: string): Promise<boolean> => {
+    try {
+        const { data } = await supabase
+            .from('invitation_codes')
+            .select('*')
+            .eq('code', code.trim().toUpperCase())
+            .eq('is_used', false)
+            .single();
+        return !!data;
+    } catch (e) {
+        return false;
+    }
+};
+
+export const markInviteCodeUsed = async (code: string, userId: string) => {
+    try {
+        await supabase
+            .from('invitation_codes')
+            .update({ 
+                is_used: true, 
+                used_by: userId,
+                used_at: new Date().toISOString()
+            })
+            .eq('code', code.trim().toUpperCase());
+    } catch (e) {
+        console.error("Mark code used failed", e);
     }
 };
 

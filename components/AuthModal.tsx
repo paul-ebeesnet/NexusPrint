@@ -1,6 +1,8 @@
+
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Database, UserCircle, Eye, EyeOff, UserPlus, ArrowRight, Activity, CheckCircle, AlertTriangle } from 'lucide-react';
+import { X, Database, UserCircle, Eye, EyeOff, UserPlus, ArrowRight, Activity, CheckCircle, AlertTriangle, Ticket } from 'lucide-react';
 import { supabase } from '../services/supabase';
+import { getSystemSettings, validateInviteCode, markInviteCodeUsed } from '../services/storageService';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -13,11 +15,13 @@ interface AuthModalProps {
 const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLogin, onSignUp, onGuestLogin }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [inviteCode, setInviteCode] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<'checking' | 'online' | 'offline' | null>(null);
+  const [requireInvite, setRequireInvite] = useState(false);
   
   // Track if we should suggest switching to sign up
   const [suggestSignUp, setSuggestSignUp] = useState(false);
@@ -29,17 +33,25 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLogin, onSignU
       return () => { isMounted.current = false; };
   }, []);
 
+  // Check system settings when opening
+  useEffect(() => {
+      if (isOpen) {
+          getSystemSettings().then(settings => {
+              if (isMounted.current) {
+                  setRequireInvite(settings['require_invite'] === 'true');
+              }
+          });
+          checkConnection();
+      }
+  }, [isOpen]);
+
   // Reset state when mode changes
   useEffect(() => {
       setError(null);
       setSuggestSignUp(false);
       setConnectionStatus(null);
+      setInviteCode('');
   }, [isSignUp, isOpen]);
-
-  // Check connection when modal opens to reassure user
-  useEffect(() => {
-      if(isOpen) checkConnection();
-  }, [isOpen]);
 
   const checkConnection = async () => {
       if (!isMounted.current) return;
@@ -65,13 +77,38 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLogin, onSignU
         setError("Please enter both email and password.");
         return;
     }
+
+    if (isSignUp && requireInvite && !inviteCode) {
+        setError("Invitation code is required.");
+        return;
+    }
+
     setError(null);
     setSuggestSignUp(false);
     setLoading(true);
     
     try {
         if (isSignUp) {
+            // Validate invite code first
+            if (requireInvite) {
+                const isValid = await validateInviteCode(inviteCode);
+                if (!isValid) {
+                    throw new Error("Invalid or used invitation code.");
+                }
+            }
+
+            // Create User
             await onSignUp(cleanEmail, password);
+            
+            // If successful and we used a code, mark it as used
+            if (requireInvite) {
+                // Get the user ID we just created - we have to fetch current session to be sure
+                const { data: { user } } = await supabase.auth.getUser();
+                if (user) {
+                    await markInviteCodeUsed(inviteCode, user.id);
+                }
+            }
+
             if (isMounted.current) {
                 alert("Sign up successful! Please check your email for confirmation or sign in.");
                 setIsSignUp(false);
@@ -203,6 +240,26 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLogin, onSignU
                 </button>
             </div>
           </div>
+
+          {/* Invitation Code Input */}
+          {isSignUp && requireInvite && (
+            <div className="animate-fadeIn">
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Invitation Code <span className="text-red-500">*</span></label>
+                <div className="relative">
+                    <input
+                    type="text"
+                    value={inviteCode}
+                    onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
+                    className="w-full border border-indigo-200 bg-indigo-50 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent pl-10 transition-all font-mono tracking-widest uppercase"
+                    placeholder="ENTER CODE"
+                    />
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <Ticket size={18} className="text-indigo-500" />
+                    </div>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">Registration is currently invite-only.</p>
+            </div>
+          )}
           
           <button
             type="submit"
